@@ -410,8 +410,13 @@ static void MupenControllerCommand(int Control, unsigned char *Command)
             GCControllerDirectionPad *dpad = [gamepad dpad];
 
 			// Left Joystick → Joystick
-            xAxis[playerIndex] = gamepad.leftThumbstick.xAxis.value * N64_ANALOG_MAX;
-            yAxis[playerIndex] = gamepad.leftThumbstick.yAxis.value * N64_ANALOG_MAX;
+            if ([controller.vendorName isEqualToString:@"Mocute"]) {
+                xAxis[playerIndex] = dpad.xAxis.value * N64_ANALOG_MAX;
+                yAxis[playerIndex] = dpad.yAxis.value * N64_ANALOG_MAX;
+            } else {
+                xAxis[playerIndex] = gamepad.leftThumbstick.xAxis.value * N64_ANALOG_MAX;
+                yAxis[playerIndex] = gamepad.leftThumbstick.yAxis.value * N64_ANALOG_MAX;
+            }
 
 			// MFi-D-Pad → D-Pad
             padData[playerIndex][PVN64ButtonDPadUp] = dpad.up.isPressed;
@@ -459,6 +464,13 @@ static void MupenControllerCommand(int Control, unsigned char *Command)
                 padData[playerIndex][PVN64ButtonCRight] = gamepad.rightThumbstick.right.value > rightJoystickDeadZone;
             }
             
+            if ([controller.vendorName isEqualToString:@"Mocute"]) {
+                padData[playerIndex][PVN64ButtonZ] = gamepad.buttonB.isPressed;
+                padData[playerIndex][PVN64ButtonCLeft] = gamepad.leftThumbstickButton.isPressed;
+                padData[playerIndex][PVN64ButtonCUp] = gamepad.leftTrigger.isPressed;
+                padData[playerIndex][PVN64ButtonCDown] = gamepad.rightThumbstickButton.isPressed;
+                padData[playerIndex][PVN64ButtonCRight] = gamepad.buttonY.isPressed;
+            }
         } else if ([controller gamepad]) {
             GCGamepad *gamepad = [controller gamepad];
             GCControllerDirectionPad *dpad = [gamepad dpad];

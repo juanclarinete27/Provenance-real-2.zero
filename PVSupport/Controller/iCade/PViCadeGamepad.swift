@@ -21,6 +21,8 @@ internal final class PViCadeGamepad: GCExtendedGamepad {
     private let _rightTrigger: PViCadeGamepadButtonInput = PViCadeGamepadButtonInput()
     private let _start: PViCadeGamepadButtonInput = PViCadeGamepadButtonInput()
     private let _select: PViCadeGamepadButtonInput = PViCadeGamepadButtonInput()
+    private let _leftThumbstickButton: PViCadeGamepadButtonInput = PViCadeGamepadButtonInput()
+    private let _rightThumbstickButton: PViCadeGamepadButtonInput = PViCadeGamepadButtonInput()
     private let dummyThumbstick: PViCadeGamepadDirectionPad = PViCadeGamepadDirectionPad()
 
     override var dpad: PViCadeGamepadDirectionPad {
@@ -31,6 +33,16 @@ internal final class PViCadeGamepad: GCExtendedGamepad {
     // thus these are dummies.
     override var leftThumbstick: PViCadeGamepadDirectionPad {
         return dummyThumbstick
+    }
+
+    @available(iOS 12.1, tvOS 12.1, *)
+    override var leftThumbstickButton: PViCadeGamepadButtonInput? {
+        return _leftThumbstickButton
+    }
+
+    @available(iOS 12.1, tvOS 12.1, *)
+    override var rightThumbstickButton: PViCadeGamepadButtonInput? {
+        return _rightThumbstickButton
     }
 
     override var rightThumbstick: PViCadeGamepadDirectionPad {

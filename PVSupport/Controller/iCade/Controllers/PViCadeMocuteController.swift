@@ -28,6 +28,16 @@ public final class PViCadeMocuteController: PViCadeController {
             return iCadeGamepad.leftTrigger
         case iCadeControllerState.buttonH:
             return iCadeGamepad.rightTrigger
+        case iCadeControllerState.buttonI:
+            if #available(iOS 12.1, *) {
+                return iCadeGamepad.leftThumbstickButton
+            }
+            return nil
+        case iCadeControllerState.buttonJ:
+            if #available(iOS 12.1, *) {
+                return iCadeGamepad.rightThumbstickButton
+            }
+            return nil
         default:
             return nil
         }
