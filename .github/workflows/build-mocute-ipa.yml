@@ -64,6 +64,23 @@ jobs:
 
           echo "Reicast ARM flags removed successfully."
 
+      - name: Patch Reicast libpng for Xcode 16
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PNGPRIV="Cores/Reicast/reicast-emulator/core/deps/libpng/pngpriv.h"
+          test -f "$PNGPRIV"
+
+          sed -i '' 's/<fp\.h>/<math.h>/g' "$PNGPRIV"
+
+          if grep -n '<fp\.h>' "$PNGPRIV"; then
+              echo "::error::Reicast libpng ainda contém fp.h"
+              exit 1
+          fi
+
+          echo "Reicast libpng Xcode 16 fix applied successfully."
+
       - name: Patch GlideN64 for arm64 Clang
         shell: bash
         run: |
