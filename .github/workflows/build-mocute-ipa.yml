@@ -13,6 +13,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Patch Reicast for modern Clang
+        run: |
+          REICAST_PBX="Cores/Reicast/reicast-emulator/shell/apple/emulator-ios/reicast-ios.xcodeproj/project.pbxproj"
+          test -f "$REICAST_PBX"
+          sed -i "" "/-mno-thumb/d; /-mfpu=neon/d" "$REICAST_PBX"
+
       - name: Select Xcode 16.4
         run: |
           sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
@@ -35,6 +41,7 @@ jobs:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Provenance-Mocute.xcarchive" \
+            IPHONEOS_DEPLOYMENT_TARGET=12.0 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
