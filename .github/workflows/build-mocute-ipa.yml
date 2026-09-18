@@ -3,27 +3,66 @@ name: Build Provenance Mocute N64
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: macos-15-intel
+    timeout-minutes: 180
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
-
-      - name: Patch Reicast for modern Clang
-        run: |
-          REICAST_PBX="Cores/Reicast/reicast-emulator/shell/apple/emulator-ios/reicast-ios.xcodeproj/project.pbxproj"
-          test -f "$REICAST_PBX"
-          sed -i "" "/-mno-thumb/d; /-mfpu=neon/d" "$REICAST_PBX"
+          fetch-depth: 1
 
       - name: Select Xcode 16.4
         run: |
           sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
           xcodebuild -version
           swift --version
+
+      - name: Install build tools
+        run: |
+          brew install xcbeautify ldid 2>/dev/null || true
+
+      - name: Patch Reicast for modern Clang
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUILDFLAGS="Cores/Reicast/BuildFlags.xcconfig"
+          PVREICAST="Cores/Reicast/PVReicast.xcodeproj/project.pbxproj"
+          REICASTIOS="Cores/Reicast/reicast-emulator/shell/apple/emulator-ios/reicast-ios.xcodeproj/project.pbxproj"
+
+          test -f "$BUILDFLAGS"
+          test -f "$PVREICAST"
+          test -f "$REICASTIOS"
+
+          sed -i '' \
+            -e 's/[[:space:]]-mno-thumb//g' \
+            -e 's/[[:space:]]-mfpu=neon//g' \
+            "$BUILDFLAGS"
+
+          sed -i '' \
+            -e '/"-mno-thumb",/d' \
+            -e '/"-mfpu=neon",/d' \
+            "$PVREICAST"
+
+          sed -i '' \
+            -e '/"-mno-thumb",/d' \
+            -e '/"-mfpu=neon",/d' \
+            "$REICASTIOS"
+
+          if grep -nE -- '-mno-thumb|-mfpu=neon' \
+            "$BUILDFLAGS" "$PVREICAST" "$REICASTIOS"; then
+            echo "::error::Reicast still contains unsupported ARM compiler flags"
+            exit 1
+          fi
+
+          echo "Reicast ARM flags removed successfully."
 
       - name: Resolve Swift packages
         run: |
@@ -33,39 +72,107 @@ jobs:
             -scheme Provenance-Release
 
       - name: Build unsigned archive
+        shell: bash
         run: |
+          set -o pipefail
+
           xcodebuild \
             -workspace Provenance.xcworkspace \
             -scheme Provenance-Release \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
             -archivePath "$RUNNER_TEMP/Provenance-Mocute.xcarchive" \
             IPHONEOS_DEPLOYMENT_TARGET=12.0 \
+            ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            archive
+            SKIP_INSTALL=NO \
+            archive \
+            2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" | xcbeautify
+
+      - name: Print build diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          LOG="$RUNNER_TEMP/xcodebuild.log"
+
+          if [ -f "$LOG" ]; then
+            echo "===== COMPILER/LINKER ERRORS ====="
+            grep -E ': (fatal )?error:' "$LOG" | tail -100 || true
+
+            echo "===== FAILED BUILD COMMANDS ====="
+            grep -A20 "The following build commands failed:" "$LOG" || true
+
+            echo "===== LAST 100 RAW LOG LINES ====="
+            tail -100 "$LOG"
+          else
+            echo "::warning::Raw xcodebuild log was not created."
+          fi
+
+      - name: Upload xcodebuild log on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: xcodebuild-log-Provenance-Mocute-N64
+          path: ${{ runner.temp }}/xcodebuild.log
+          retention-days: 3
+          if-no-files-found: warn
 
       - name: Package IPA
+        if: success()
+        shell: bash
         run: |
+          set -euo pipefail
+
           APP_PATH="$RUNNER_TEMP/Provenance-Mocute.xcarchive/Products/Applications/Provenance.app"
 
-          test -d "$APP_PATH"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "::error::Provenance.app was not found in the archive."
+            find "$RUNNER_TEMP/Provenance-Mocute.xcarchive" -maxdepth 5 -name "*.app" -print || true
+            exit 1
+          fi
 
+          rm -rf Payload
           mkdir -p Payload
-          cp -R "$APP_PATH" Payload/Provenance.app
+
+          cp -pR "$APP_PATH" "Payload/Provenance.app"
+
+          for d in PlugIns Watch Extensions; do
+            rm -rf "Payload/Provenance.app/$d"
+          done
 
           /usr/bin/ditto \
             -c -k \
             --sequesterRsrc \
             --keepParent \
             Payload \
-            Provenance-Mocute-N64.ipa
+            Provenance-Mocute-N64-NoExtensions.ipa
+
+          echo "IPA created:"
+          ls -lh Provenance-Mocute-N64-NoExtensions.ipa
+
+      - name: Validate IPA
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f Provenance-Mocute-N64-NoExtensions.ipa
+
+          echo "IPA size:"
+          du -h Provenance-Mocute-N64-NoExtensions.ipa
+
+          echo "IPA contents:"
+          unzip -l Provenance-Mocute-N64-NoExtensions.ipa | head -30
 
       - name: Upload IPA
-        uses: actions/upload-artifact@v4
+        if: success()
+        uses: actions/upload-artifact@v6
         with:
-          name: Provenance-Mocute-N64
-          path: Provenance-Mocute-N64.ipa
+          name: Provenance-Mocute-N64-NoExtensions
+          path: Provenance-Mocute-N64-NoExtensions.ipa
           if-no-files-found: error
