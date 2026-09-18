@@ -62,4 +62,3 @@ jobs:
           name: Provenance-Mocute-N64
           path: Provenance-Mocute-N64.ipa
           if-no-files-found: error
-cat .github/workflows/build-mocute-ipa.yml
