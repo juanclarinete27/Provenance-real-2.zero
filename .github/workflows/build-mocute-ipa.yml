@@ -64,6 +64,47 @@ jobs:
 
           echo "Reicast ARM flags removed successfully."
 
+      - name: Patch GlideN64 for arm64 Clang
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MUPENGLIDE="Cores/Mupen64Plus/PVMupen64Plus.xcodeproj/project.pbxproj"
+          test -f "$MUPENGLIDE"
+
+          awk '
+          /"OTHER_CFLAGS\[sdk=iphoneos\*\]" = \(/ {
+              in_ios_flags = 1
+              print
+              next
+          }
+
+          in_ios_flags && /"-mfpu=neon",/ {
+              next
+          }
+
+          in_ios_flags && /^[[:space:]]*\);/ {
+              in_ios_flags = 0
+              print
+              next
+          }
+
+          { print }
+          ' "$MUPENGLIDE" > "$MUPENGLIDE.tmp"
+
+          mv "$MUPENGLIDE.tmp" "$MUPENGLIDE"
+
+          if awk '
+          /"OTHER_CFLAGS\[sdk=iphoneos\*\]" = \(/ {in_ios_flags=1}
+          in_ios_flags {print}
+          in_ios_flags && /^[[:space:]]*\);/ {in_ios_flags=0}
+          ' "$MUPENGLIDE" | grep -nE -- '-mfpu='; then
+              echo "::error::GlideN64 iOS still contains an mfpu flag"
+              exit 1
+          fi
+
+          echo "GlideN64 iOS ARM FPU flags removed successfully."
+
       - name: Resolve Swift packages
         run: |
           xcodebuild \
