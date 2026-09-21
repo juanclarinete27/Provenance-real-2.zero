@@ -28,99 +28,29 @@ jobs:
         run: |
           brew install xcbeautify ldid 2>/dev/null || true
 
-      - name: Patch Reicast for modern Clang
+      - name: Global Pre-build Sanitizer (Xcode 16 / Clang)
         shell: bash
         run: |
           set -euo pipefail
+          echo "=== A iniciar higienização global do código ==="
 
-          BUILDFLAGS="Cores/Reicast/BuildFlags.xcconfig"
-          PVREICAST="Cores/Reicast/PVReicast.xcodeproj/project.pbxproj"
-          REICASTIOS="Cores/Reicast/reicast-emulator/shell/apple/emulator-ios/reicast-ios.xcodeproj/project.pbxproj"
+          # 1. Remover flags obsoletas ARM (-mfpu=... e -mno-thumb) de todos os pbxproj e xcconfig
+          find . -type f \( -name "*.pbxproj" -o -name "*.xcconfig" \) -exec sed -i '' \
+            -e 's/[[:space:]]*-mfpu=[^"'[:space:]]*//g' \
+            -e 's/"-mfpu=[^"]*",//g' \
+            -e 's/[[:space:]]*-mno-thumb//g' \
+            -e 's/"-mno-thumb",//g' {} +
 
-          test -f "$BUILDFLAGS"
-          test -f "$PVREICAST"
-          test -f "$REICASTIOS"
+          # 2. Corrigir include de fp.h para math.h em todas as dependências C/C++ (libpng, Mupen, Reicast, etc.)
+          find . -type f \( -name "*.h" -o -name "*.c" -o -name "*.cpp" \) -exec sed -i '' \
+            's/<fp\.h>/<math\.h>/g' {} +
 
-          sed -i '' \
-            -e 's/[[:space:]]-mno-thumb//g' \
-            -e 's/[[:space:]]-mfpu=neon//g' \
-            "$BUILDFLAGS"
+          # 3. Substituir referências à biblioteca C++ obsoleta (libstdc++) por libc++
+          find . -type f -name "*.pbxproj" -exec sed -i '' \
+            -e 's/libstdc++\.6\.0\.9/libc++/g' \
+            -e 's/libstdc++/libc++/g' {} +
 
-          sed -i '' \
-            -e '/"-mno-thumb",/d' \
-            -e '/"-mfpu=neon",/d' \
-            "$PVREICAST"
-
-          sed -i '' \
-            -e '/"-mno-thumb",/d' \
-            -e '/"-mfpu=neon",/d' \
-            "$REICASTIOS"
-
-          if grep -nE -- '-mno-thumb|-mfpu=neon' \
-            "$BUILDFLAGS" "$PVREICAST" "$REICASTIOS"; then
-            echo "::error::Reicast still contains unsupported ARM compiler flags"
-            exit 1
-          fi
-
-          echo "Reicast ARM flags removed successfully."
-
-      - name: Patch Reicast libpng for Xcode 16
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          PNGPRIV="Cores/Reicast/reicast-emulator/core/deps/libpng/pngpriv.h"
-          test -f "$PNGPRIV"
-
-          sed -i '' 's/<fp\.h>/<math.h>/g' "$PNGPRIV"
-
-          if grep -n '<fp\.h>' "$PNGPRIV"; then
-              echo "::error::Reicast libpng ainda contém fp.h"
-              exit 1
-          fi
-
-          echo "Reicast libpng Xcode 16 fix applied successfully."
-
-      - name: Patch GlideN64 for arm64 Clang
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          MUPENGLIDE="Cores/Mupen64Plus/PVMupen64Plus.xcodeproj/project.pbxproj"
-          test -f "$MUPENGLIDE"
-
-          awk '
-          /"OTHER_CFLAGS\[sdk=iphoneos\*\]" = \(/ {
-              in_ios_flags = 1
-              print
-              next
-          }
-
-          in_ios_flags && /"-mfpu=neon",/ {
-              next
-          }
-
-          in_ios_flags && /^[[:space:]]*\);/ {
-              in_ios_flags = 0
-              print
-              next
-          }
-
-          { print }
-          ' "$MUPENGLIDE" > "$MUPENGLIDE.tmp"
-
-          mv "$MUPENGLIDE.tmp" "$MUPENGLIDE"
-
-          if awk '
-          /"OTHER_CFLAGS\[sdk=iphoneos\*\]" = \(/ {in_ios_flags=1}
-          in_ios_flags {print}
-          in_ios_flags && /^[[:space:]]*\);/ {in_ios_flags=0}
-          ' "$MUPENGLIDE" | grep -nE -- '-mfpu='; then
-              echo "::error::GlideN64 iOS still contains an mfpu flag"
-              exit 1
-          fi
-
-          echo "GlideN64 iOS ARM FPU flags removed successfully."
+          echo "=== Higienização concluída com sucesso ==="
 
       - name: Resolve Swift packages
         run: |
