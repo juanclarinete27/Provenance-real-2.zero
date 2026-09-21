@@ -32,25 +32,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "=== A iniciar higienização global do código ==="
+          echo "=== A iniciar higienizacao global do codigo ==="
 
-          # 1. Remover flags obsoletas ARM (-mfpu=... e -mno-thumb) de todos os pbxproj e xcconfig
+          # 1. Remover flags obsoletas ARM (-mfpu=... e -mno-thumb)
           find . -type f \( -name "*.pbxproj" -o -name "*.xcconfig" \) -exec sed -i '' \
-            -e 's/[[:space:]]*-mfpu=[^"'[:space:]]*//g' \
+            -e 's/[[:space:]]*-mfpu=[^"[:space:]]*//g' \
             -e 's/"-mfpu=[^"]*",//g' \
             -e 's/[[:space:]]*-mno-thumb//g' \
             -e 's/"-mno-thumb",//g' {} +
 
-          # 2. Corrigir include de fp.h para math.h em todas as dependências C/C++ (libpng, Mupen, Reicast, etc.)
+          # 2. Corrigir include de fp.h para math.h
           find . -type f \( -name "*.h" -o -name "*.c" -o -name "*.cpp" \) -exec sed -i '' \
             's/<fp\.h>/<math\.h>/g' {} +
 
-          # 3. Substituir referências à biblioteca C++ obsoleta (libstdc++) por libc++
+          # 3. Substituir referências à libstdc++ por libc++
           find . -type f -name "*.pbxproj" -exec sed -i '' \
             -e 's/libstdc++\.6\.0\.9/libc++/g' \
             -e 's/libstdc++/libc++/g' {} +
 
-          echo "=== Higienização concluída com sucesso ==="
+          echo "=== Higienizacao concluida com sucesso ==="
 
       - name: Resolve Swift packages
         run: |
