@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-15-intel
+    runs-on: macos-14-large
     timeout-minutes: 180
 
     steps:
@@ -18,9 +18,9 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Select Xcode 16.4
+      - name: Select Xcode 15.4
         run: |
-          sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
+          sudo xcode-select --switch /Applications/Xcode_15.4.app/Contents/Developer
           xcodebuild -version
           swift --version
 
@@ -64,12 +64,6 @@ jobs:
             -workspace Provenance.xcworkspace \
             -scheme Provenance-Release
 
-      - name: Fix Byte Error
-        run: |
-          find . -type f \( -name "*.h" -o -name "*.cpp" -o -name "*.c" \) -exec grep -l "typedef Byte FAR Bytef;" {} + | xargs perl -pi -e 's/typedef Byte FAR Bytef;/#include <stdint.h>\ntypedef uint8_t Byte;\ntypedef Byte FAR Bytef;/g' || true
-      - name: Fix Byte Error Deeply
-        run: |
-          find . -name 'unzip.cpp' -exec sed -i 's/typedef Byte FAR Bytef;/#include <stdint.h>\\ntypedef uint8_t Byte;\\ntypedef Byte FAR Bytef;/g' {} + || true
       - name: Build unsigned archive
         shell: bash
         run: |

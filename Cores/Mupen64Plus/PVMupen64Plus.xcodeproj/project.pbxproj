@@ -6838,7 +6838,6 @@
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
 				"OTHER_CFLAGS[sdk=iphoneos*]" = (
-					"-mfpu=neon",
 					"-fno-strict-aliasing",
 					"-fvisibility=hidden",
 					"-DGCC",
@@ -8881,7 +8880,6 @@
 				);
 				MTL_ENABLE_DEBUG_INFO = YES;
 				"OTHER_CFLAGS[sdk=iphoneos*]" = (
-					"-mfpu=neon",
 					"-fno-strict-aliasing",
 					"-fvisibility=hidden",
 					"-DGCC",
@@ -8985,7 +8983,6 @@
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
 				"OTHER_CFLAGS[sdk=iphoneos*]" = (
-					"-mfpu=neon",
 					"-fno-strict-aliasing",
 					"-fvisibility=hidden",
 					"-DGCC",
