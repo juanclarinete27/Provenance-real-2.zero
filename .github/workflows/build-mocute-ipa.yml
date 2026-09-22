@@ -64,6 +64,9 @@ jobs:
             -workspace Provenance.xcworkspace \
             -scheme Provenance-Release
 
+      - name: Fix Byte Error
+        run: |
+          find . -type f \( -name "*.h" -o -name "*.cpp" -o -name "*.c" \) -exec grep -l "typedef Byte FAR Bytef;" {} + | xargs perl -pi -e 's/typedef Byte FAR Bytef;/#include <stdint.h>\ntypedef uint8_t Byte;\ntypedef Byte FAR Bytef;/g' || true
       - name: Build unsigned archive
         shell: bash
         run: |
